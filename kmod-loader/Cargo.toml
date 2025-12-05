@@ -1,0 +1,16 @@
+[package]
+name = "kmod-loader"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+goblin = { version = "0.10", default-features = false, features = [
+    "elf32",
+    "elf64",
+    "endian_fd",
+] }
+int-enum = "1.2.0"
+
+[[example]]
+name = "parse_elf"
+path = "examples/parse_elf.rs"

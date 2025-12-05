@@ -1,0 +1,11 @@
+[package]
+name = "hello"
+version = "0.1.0"
+edition = "2024"
+
+[lib]
+name = "hello"
+crate-type = ["staticlib"] # 关键：使用staticlib
+
+[dependencies]
+kmod = { path = "../../kmod" }

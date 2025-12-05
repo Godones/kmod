@@ -1,0 +1,4 @@
+[workspace]
+members = ["builder", "kmod", "kmod-loader", "modules/hello"]
+
+resolver = "2"
