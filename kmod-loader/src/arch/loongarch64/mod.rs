@@ -1,9 +1,7 @@
 mod inst;
-use crate::arch::loongarch64::inst::{
-    reg0i26_format, reg1i20_format, reg1i21_format, reg2i12_format, reg2i16_format,
-};
-use crate::arch::{Ptr, get_rela_sym_idx, get_rela_type};
-use crate::loader::{KernelModuleHelper, ModuleLoadInfo, ModuleOwner};
+use crate::arch::loongarch64::inst::*;
+use crate::arch::*;
+use crate::loader::*;
 use crate::{ModuleErr, Result};
 use alloc::format;
 use alloc::string::ToString;
@@ -675,26 +673,12 @@ pub struct Loongarch64ArchRelocate;
 impl Loongarch64ArchRelocate {
     /// See <https://elixir.bootlin.com/linux/v6.6/source/arch/loongarch/kernel/module.c#L421>
     pub fn apply_relocate_add<H: KernelModuleHelper>(
-        elf_data: &[u8],
+        rela_list: &[goblin::elf64::reloc::Rela],
+        rel_section: &SectionHeader,
         sechdrs: &[SectionHeader],
         load_info: &ModuleLoadInfo,
-        relsec: usize,
         module: &ModuleOwner<H>,
     ) -> Result<()> {
-        let rel_section = &sechdrs[relsec];
-        let offset = rel_section.sh_offset as usize;
-
-        // Size of Elf64_Rela
-        debug_assert!(rel_section.sh_entsize == 24);
-        let data = elf_data;
-        let data_buf = &data[offset..offset + rel_section.sh_size as usize];
-        let rela_list = unsafe {
-            goblin::elf64::reloc::from_raw_rela(
-                data_buf.as_ptr() as _,
-                rel_section.sh_size as usize,
-            )
-        };
-
         let mut rela_stack = [0i64; RELA_STACK_DEPTH];
         let mut rela_stack_top = 0;
 
@@ -717,8 +701,7 @@ impl Loongarch64ArchRelocate {
                 ModuleErr::RelocationFailed(format!("Invalid relocation type: {}", rel_type))
             })?;
 
-            let target_addr = sym.st_value as i64 + rela.r_addend;
-
+            let target_addr = sym.st_value.wrapping_add(rela.r_addend as u64);
             log::trace!(
                 "Applying relocation: type = {:?}, location = {:#x}, target_addr = {:#x}",
                 reloc_type,

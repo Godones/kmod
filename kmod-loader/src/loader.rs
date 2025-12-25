@@ -406,7 +406,7 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
 
     /// See <https://elixir.bootlin.com/linux/v6.6/source/kernel/module/main.c#L1438>
     fn apply_relocations(&self, load_info: ModuleLoadInfo, owner: &ModuleOwner<H>) -> Result<()> {
-        for (idx, shdr) in self.elf.section_headers.iter().enumerate() {
+        for (_, shdr) in self.elf.section_headers.iter().enumerate() {
             let infosec = shdr.sh_info;
 
             let sec_name = self
@@ -447,27 +447,57 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
                 rela_entries
             );
 
-            match self.get_machine_type() {
-                "RISC-V" => {
+            let offset = shdr.sh_offset as usize;
+            // Size of Elf64_Rela
+            debug_assert!(shdr.sh_entsize == 24);
+
+            let data_buf = &self.elf_data[offset..offset + shdr.sh_size as usize];
+            let rela_list = unsafe {
+                goblin::elf64::reloc::from_raw_rela(data_buf.as_ptr() as _, shdr.sh_size as usize)
+            };
+
+            match self.elf.header.e_machine {
+                goblin::elf::header::EM_RISCV => {
                     crate::arch::Riscv64ArchRelocate::apply_relocate_add(
-                        self.elf_data,
+                        &rela_list,
+                        shdr,
                         &self.elf.section_headers,
                         &load_info,
-                        idx,
                         owner,
                     )?;
                 }
-                "LoongArch" => {
+                goblin::elf::header::EM_LOONGARCH => {
                     crate::arch::Loongarch64ArchRelocate::apply_relocate_add(
-                        self.elf_data,
+                        &rela_list,
+                        shdr,
                         &self.elf.section_headers,
                         &load_info,
-                        idx,
                         owner,
                     )?;
                 }
-                arch => {
-                    panic!("Relocations for architecture '{}' not supported", arch);
+                goblin::elf::header::EM_AARCH64 => {
+                    crate::arch::Aarch64ArchRelocate::apply_relocate_add(
+                        &rela_list,
+                        shdr,
+                        &self.elf.section_headers,
+                        &load_info,
+                        owner,
+                    )?;
+                }
+                goblin::elf::header::EM_X86_64 => {
+                    crate::arch::X86_64ArchRelocate::apply_relocate_add(
+                        &rela_list,
+                        shdr,
+                        &self.elf.section_headers,
+                        &load_info,
+                        owner,
+                    )?;
+                }
+                _ => {
+                    panic!(
+                        "Relocations for architecture '{}' not supported",
+                        self.get_machine_type()
+                    );
                 }
             }
         }

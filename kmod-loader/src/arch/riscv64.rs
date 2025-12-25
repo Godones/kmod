@@ -130,7 +130,7 @@ const fn riscv_insn_valid_32bit_offset(offset: i64) -> bool {
     low <= offset && offset < high
 }
 
-impl Riscv64RelocationType {
+impl Rv64RelTy {
     fn apply_r_riscv_32_rela(location: Ptr, address: u64) -> Result<()> {
         if address != address as u32 as u64 {
             return Err(ModuleErr::RelocationFailed(format!(
@@ -366,97 +366,52 @@ impl Riscv64RelocationType {
     pub fn apply_relocation(&self, location: u64, address: u64) -> Result<()> {
         let location = Ptr(location);
         match self {
-            Riscv64RelocationType::R_RISCV_32 => Self::apply_r_riscv_32_rela(location, address),
-            Riscv64RelocationType::R_RISCV_64 => Self::apply_r_riscv_64_rela(location, address),
-            Riscv64RelocationType::R_RISCV_BRANCH => {
-                Self::apply_r_riscv_branch_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_JAL => Self::apply_r_riscv_jal_rela(location, address),
-            Riscv64RelocationType::R_RISCV_RVC_BRANCH => {
-                Self::apply_r_riscv_rvc_branch_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_RVC_JUMP => {
-                Self::apply_r_riscv_rvc_jump_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_PCREL_HI20 => {
-                Self::apply_r_riscv_pcrel_hi20_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_PCREL_LO12_I => {
+            Rv64RelTy::R_RISCV_32 => Self::apply_r_riscv_32_rela(location, address),
+            Rv64RelTy::R_RISCV_64 => Self::apply_r_riscv_64_rela(location, address),
+            Rv64RelTy::R_RISCV_BRANCH => Self::apply_r_riscv_branch_rela(location, address),
+            Rv64RelTy::R_RISCV_JAL => Self::apply_r_riscv_jal_rela(location, address),
+            Rv64RelTy::R_RISCV_RVC_BRANCH => Self::apply_r_riscv_rvc_branch_rela(location, address),
+            Rv64RelTy::R_RISCV_RVC_JUMP => Self::apply_r_riscv_rvc_jump_rela(location, address),
+            Rv64RelTy::R_RISCV_PCREL_HI20 => Self::apply_r_riscv_pcrel_hi20_rela(location, address),
+            Rv64RelTy::R_RISCV_PCREL_LO12_I => {
                 Self::apply_r_riscv_pcrel_lo12_i_rela(location, address)
             }
-            Riscv64RelocationType::R_RISCV_PCREL_LO12_S => {
+            Rv64RelTy::R_RISCV_PCREL_LO12_S => {
                 Self::apply_r_riscv_pcrel_lo12_s_rela(location, address)
             }
-            Riscv64RelocationType::R_RISCV_HI20 => Self::apply_r_riscv_hi20_rela(location, address),
-            Riscv64RelocationType::R_RISCV_LO12_I => {
-                Self::apply_r_riscv_lo12_i_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_LO12_S => {
-                Self::apply_r_riscv_lo12_s_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_GOT_HI20 => {
-                Self::apply_r_riscv_got_hi20_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_CALL_PLT => {
-                Self::apply_r_riscv_call_plt_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_CALL => Self::apply_r_riscv_call_rela(location, address),
-            Riscv64RelocationType::R_RISCV_RELAX => {
-                Self::apply_r_riscv_relax_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_ALIGN => {
-                Self::apply_r_riscv_align_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_ADD16 => {
-                Self::apply_r_riscv_add16_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_ADD32 => {
-                Self::apply_r_riscv_add32_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_ADD64 => {
-                Self::apply_r_riscv_add64_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_SUB16 => {
-                Self::apply_r_riscv_sub16_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_SUB32 => {
-                Self::apply_r_riscv_sub32_rela(location, address)
-            }
-            Riscv64RelocationType::R_RISCV_SUB64 => {
-                Self::apply_r_riscv_sub64_rela(location, address)
-            }
+            Rv64RelTy::R_RISCV_HI20 => Self::apply_r_riscv_hi20_rela(location, address),
+            Rv64RelTy::R_RISCV_LO12_I => Self::apply_r_riscv_lo12_i_rela(location, address),
+            Rv64RelTy::R_RISCV_LO12_S => Self::apply_r_riscv_lo12_s_rela(location, address),
+            Rv64RelTy::R_RISCV_GOT_HI20 => Self::apply_r_riscv_got_hi20_rela(location, address),
+            Rv64RelTy::R_RISCV_CALL_PLT => Self::apply_r_riscv_call_plt_rela(location, address),
+            Rv64RelTy::R_RISCV_CALL => Self::apply_r_riscv_call_rela(location, address),
+            Rv64RelTy::R_RISCV_RELAX => Self::apply_r_riscv_relax_rela(location, address),
+            Rv64RelTy::R_RISCV_ALIGN => Self::apply_r_riscv_align_rela(location, address),
+            Rv64RelTy::R_RISCV_ADD16 => Self::apply_r_riscv_add16_rela(location, address),
+            Rv64RelTy::R_RISCV_ADD32 => Self::apply_r_riscv_add32_rela(location, address),
+            Rv64RelTy::R_RISCV_ADD64 => Self::apply_r_riscv_add64_rela(location, address),
+            Rv64RelTy::R_RISCV_SUB16 => Self::apply_r_riscv_sub16_rela(location, address),
+            Rv64RelTy::R_RISCV_SUB32 => Self::apply_r_riscv_sub32_rela(location, address),
+            Rv64RelTy::R_RISCV_SUB64 => Self::apply_r_riscv_sub64_rela(location, address),
             _ => unimplemented!("RISC-V relocation application not implemented yet"),
         }
     }
 }
 
+type Rv64RelTy = Riscv64RelocationType;
+
 pub struct Riscv64ArchRelocate;
 
 #[allow(unused_assignments)]
 impl Riscv64ArchRelocate {
-    /// See <https://elixir.bootlin.com/linux/v6.6/source/arch/riscv/kernel/module.c>
     /// See <https://elixir.bootlin.com/linux/v6.6/source/arch/riscv/kernel/module.c#L313>
     pub fn apply_relocate_add<H: KernelModuleHelper>(
-        elf_data: &[u8],
+        rela_list: &[goblin::elf64::reloc::Rela],
+        rel_section: &SectionHeader,
         sechdrs: &[SectionHeader],
         load_info: &ModuleLoadInfo,
-        relsec: usize,
         module: &ModuleOwner<H>,
     ) -> Result<()> {
-        let rel_section = &sechdrs[relsec];
-        let offset = rel_section.sh_offset as usize;
-
-        // Size of Elf64_Rela
-        debug_assert!(rel_section.sh_entsize == 24);
-        let data = elf_data;
-
-        let data_buf = &data[offset..offset + rel_section.sh_size as usize];
-        let rela_list = unsafe {
-            goblin::elf64::reloc::from_raw_rela(
-                data_buf.as_ptr() as _,
-                rel_section.sh_size as usize,
-            )
-        };
         for rela in rela_list {
             let rel_type = get_rela_type(rela.r_info);
             let sym_idx = get_rela_sym_idx(rela.r_info);
@@ -471,10 +426,10 @@ impl Riscv64ArchRelocate {
 
             let sym_name = &load_info.symbol_names[sym_idx];
 
-            let mut target_addr = sym.st_value as i64 + rela.r_addend;
+            let mut target_addr = sym.st_value.wrapping_add(rela.r_addend as u64);
 
-            if reloc_type == Riscv64RelocationType::R_RISCV_PCREL_LO12_I
-                || reloc_type == Riscv64RelocationType::R_RISCV_PCREL_LO12_S
+            if reloc_type == Rv64RelTy::R_RISCV_PCREL_LO12_I
+                || reloc_type == Rv64RelTy::R_RISCV_PCREL_LO12_S
             {
                 // PC-relative relocation
                 let mut find = false;
@@ -482,7 +437,7 @@ impl Riscv64ArchRelocate {
                     let hi20_loc =
                         sechdrs[rel_section.sh_info as usize].sh_addr + inner_rela.r_offset;
                     let hi20_type = get_rela_type(inner_rela.r_info);
-                    let hi20_type = Riscv64RelocationType::try_from(hi20_type).map_err(|_| {
+                    let hi20_type = Rv64RelTy::try_from(hi20_type).map_err(|_| {
                         ModuleErr::RelocationFailed(format!(
                             "Invalid relocation type: {}",
                             hi20_type
@@ -491,8 +446,8 @@ impl Riscv64ArchRelocate {
 
                     // Find the corresponding HI20 relocation entry
                     if hi20_loc == sym.st_value
-                        && (hi20_type == Riscv64RelocationType::R_RISCV_PCREL_HI20
-                            || hi20_type == Riscv64RelocationType::R_RISCV_GOT_HI20)
+                        && (hi20_type == Rv64RelTy::R_RISCV_PCREL_HI20
+                            || hi20_type == Rv64RelTy::R_RISCV_GOT_HI20)
                     {
                         let hi20_sym = load_info.syms[get_rela_sym_idx(inner_rela.r_info)];
 
@@ -506,7 +461,7 @@ impl Riscv64ArchRelocate {
                         //     offset = offset - hi20_loc;
                         // }
 
-                        if hi20_type == Riscv64RelocationType::R_RISCV_GOT_HI20 {
+                        if hi20_type == Rv64RelTy::R_RISCV_GOT_HI20 {
                             unimplemented!("GOT handling not implemented yet");
                         }
 
@@ -514,7 +469,7 @@ impl Riscv64ArchRelocate {
                         let lo_12 = offset - hi_20;
 
                         // update target_addr
-                        target_addr = lo_12;
+                        target_addr = lo_12 as u64;
                         find = true;
                         break;
                     }
@@ -530,7 +485,7 @@ impl Riscv64ArchRelocate {
                     ));
                 }
             }
-            let res = reloc_type.apply_relocation(location, target_addr as u64);
+            let res = reloc_type.apply_relocation(location, target_addr);
             match res {
                 Err(e) => {
                     let sym_name = &load_info.symbol_names[sym_idx];

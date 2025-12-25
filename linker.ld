@@ -1,6 +1,6 @@
 SECTIONS
 {
-    . = 0x00000000;
+    . = 0x0;
 
     .modinfo : {
         /* 魔数: "MODU"
@@ -21,16 +21,15 @@ SECTIONS
 
     .text : {
         *(.text .text.*)
+        *(.ltext .ltext.*)
         KEEP(*(.text.init))
         KEEP(*(.text.exit))
     }
 
     .rodata : {
         *(.rodata .rodata.*)
+        *(.lrodata .lrodata.*)
         . = ALIGN(8);
-        module_name = .;
-        *(.modinfo)
-        module_version = .;
     }
 
     .data : {
@@ -42,21 +41,6 @@ SECTIONS
         *(COMMON)
     }
 
-    .got : {
-        *(.got)
-        *(.igot)
-    }
-
-    .got.plt : { 
-        *(.got.plt)
-        *(.igot.plt)
-    }
-
-    .plt : {
-        *(.plt)
-        *(.iplt)
-    }
-
     /DISCARD/ : {
         *(.comment)
         *(.note.GNU-stack)
@@ -65,6 +49,3 @@ SECTIONS
         *(.eh_frame_hdr)
     }
 }
-
-/* 定义入口符号（可选） */
-/* PROVIDE(_start = hello_init); */

@@ -1,5 +1,5 @@
 [workspace]
-members = ["kmacro", "kmod", "kmod-loader"]
+members = ["kmacro", "kmod", "kmod-loader", "modules/hello"]
 
-exclude = ["modules/hello"]
+# exclude = ["modules/hello"]
 resolver = "2"

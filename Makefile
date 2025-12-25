@@ -23,7 +23,7 @@ RUSTFLAGS := -C relocation-model=static
 
 ifeq ($(ARCH), x86_64)
   TARGET := x86_64-unknown-none
-  RUSTFLAGS +=  -C code-model=kernel
+  RUSTFLAGS +=  -C code-model=large
 else ifeq ($(ARCH), aarch64)
   TARGET := aarch64-unknown-none-softfloat
 else ifeq ($(ARCH), riscv64)

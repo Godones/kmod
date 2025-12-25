@@ -43,9 +43,18 @@ typedef struct {
 
 ## 特殊问题
 - 在la64架构上，如果没有设置code-model,可能会产生特殊的重定位项。比如其默认使用的medium code-model,会导致生成R_LARCH_CALL36重定位类型,这在内核模块加载时是不被支持的。因此，需要在编译时指定`-C code-model=large`来避免这种情况的发生。
+- --gc-sections 链接选项可以移除未使用的节，从而减少模块大小与重定位数量
+  
+  
+### x86_64架构下的内核模块重定位问题:
+
+根据 [内核文档](https://www.kernel.org/doc/html/v5.8/x86/x86_64/mm.html) 中的描述：x86_64 架构下，内核模块所在的虚拟地址空间范围是 `0xffffffffa0000000` 到 `ffffffffff000000`。 这个地址区间的设置是与其重定位项相关的，对于`R_X86_64_32S`类型的重定位项，内核需要对计算出来的地址进行截断并进行符号扩展，以确保地址的正确性。如果高位不为1，加载器会返回错误。[What do R_X86_64_32S and R_X86_64_64 relocation mean?](https://stackoverflow.com/questions/6093547/what-do-r-x86-64-32s-and-r-x86-64-64-relocation-mean) 该文档有一些示例说明。
+
+目前，Starry的基座Arceos的内核地址空间起始地址位于`0xffff_8000_0020_0000`，其布局与Linux具有较大的差别。Linux内核在编译内核模块时会选用`code-model=kernel`，这与其地址空间布局密切相关。因此无法当前无法直接使用该code-model来编译内核模块。为了解决这个问题，目前的做法是使用`code-model=large`来编译内核模块，这样可以避免生成一些跟地址空间布局相关的重定位项，从而避免上述问题的发生。
 
 
-## 
+##  参考链接
 - riscv64架构对plt/got的处理: https://elixir.bootlin.com/linux/v6.6/source/arch/riscv/kernel/module-sections.c#L90
 - https://systemoverlord.com/2017/03/19/got-and-plt-for-pwning.html
 - https://crab2313.github.io/post/kernel-module/
+- https://bbs.kanxue.com/thread-271555-1.htm
