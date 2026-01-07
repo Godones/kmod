@@ -46,4 +46,9 @@ impl Module {
         let exit_fn = self.0.exit.take();
         exit_fn
     }
+
+    pub fn name(&self) -> &str {
+        let c_str = unsafe { core::ffi::CStr::from_ptr(self.0.name.as_ptr()) };
+        c_str.to_str().unwrap_or("unknown")
+    }
 }

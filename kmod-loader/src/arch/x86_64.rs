@@ -1,4 +1,3 @@
-use alloc::format;
 use goblin::elf::SectionHeader;
 use int_enum::IntEnum;
 
@@ -60,10 +59,7 @@ impl X86_64RelocationType {
                 target_addr
             );
             log::error!("module likely not compiled with -mcmodel=kernel");
-            ModuleErr::RelocationFailed(format!(
-                "Overflow in relocation type {:?}, target address {:#x}",
-                self, target_addr
-            ))
+            ModuleErr::ENOEXEC
         };
         match self {
             X64RelTy::R_X86_64_NONE => return Ok(()),
@@ -94,10 +90,8 @@ impl X86_64RelocationType {
                 size = 8;
             }
             _ => {
-                return Err(ModuleErr::RelocationFailed(format!(
-                    "Unsupported relocation type: {:?}",
-                    self
-                )));
+                log::error!("x86/modules: Unsupported relocation type: {:?}", self);
+                return Err(ModuleErr::ENOEXEC);
             }
         }
         // if (memcmp(loc, &zero, size))
@@ -108,10 +102,7 @@ impl X86_64RelocationType {
                 location.0,
                 target_addr
             );
-            return Err(ModuleErr::RelocationFailed(format!(
-                "Invalid relocation target, existing value is nonzero for type {:?}",
-                self
-            )));
+            return Err(ModuleErr::ENOEXEC);
         } else {
             // Write the relocated value
             match size {
@@ -145,13 +136,18 @@ impl X86_64ArchRelocate {
             let (sym, sym_name) = &load_info.syms[sym_idx];
 
             let reloc_type = X86_64RelocationType::try_from(rel_type).map_err(|_| {
-                ModuleErr::RelocationFailed(format!("Invalid relocation type: {}", rel_type))
+                log::error!(
+                    "[{:?}]: Invalid relocation type: {}",
+                    module.name(),
+                    rel_type
+                );
+                ModuleErr::ENOEXEC
             })?;
 
             let target_addr = sym.st_value.wrapping_add(rela.r_addend as u64);
 
             log::info!(
-                "[{}]: Applying relocation {:?} at location {:#x} with target addr {:#x}",
+                "[{:?}]: Applying relocation {:?} at location {:#x} with target addr {:#x}",
                 module.name(),
                 reloc_type,
                 location,
@@ -161,7 +157,7 @@ impl X86_64ArchRelocate {
             let res = reloc_type.apply_relocation(location, target_addr);
             match res {
                 Err(e) => {
-                    log::error!("[{}]: '{}' {:?}", module.name(), sym_name, e);
+                    log::error!("[{:?}]: '{}' {:?}", module.name(), sym_name, e);
                     return Err(e);
                 }
                 Ok(_) => { /* Successfully applied relocation */ }

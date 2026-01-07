@@ -5,7 +5,6 @@ use crate::{
     arch::{Ptr, aarch64::insn::*, get_rela_sym_idx, get_rela_type},
     loader::*,
 };
-use alloc::{format, string::ToString as _};
 use goblin::elf::SectionHeader;
 use int_enum::IntEnum;
 
@@ -244,9 +243,8 @@ impl Aarch64RelocationType {
             Ok(false)
         } else {
             //  out of range for ADR -> emit a veneer
-            Err(ModuleErr::RelocationFailed(
-                "ADR out of range for veneer emission".to_string(),
-            ))
+            log::error!("ADR out of range for veneer emission");
+            return Err(ModuleErr::ENOEXEC);
         }
     }
 
@@ -513,17 +511,13 @@ impl Aarch64RelocationType {
                 ovf
             }
             _ => {
-                return Err(ModuleErr::RelocationFailed(format!(
-                    "Unsupported relocation type: {:?}",
-                    self
-                )));
+                log::error!("Relocation type {:?} not implemented yet", self);
+                return Err(ModuleErr::ENOEXEC);
             }
         };
         if check_overflow && ovf {
-            return Err(ModuleErr::RelocationFailed(format!(
-                "Overflow detected during relocation type {:?}",
-                self
-            )));
+            log::error!("Overflow detected during relocation type {:?}", self);
+            return Err(ModuleErr::ENOEXEC);
         }
         Ok(())
     }
@@ -550,14 +544,19 @@ impl Aarch64ArchRelocate {
             let (sym, sym_name) = &load_info.syms[sym_idx];
 
             let reloc_type = Arm64RelTy::try_from(rel_type).map_err(|_| {
-                ModuleErr::RelocationFailed(format!("Invalid relocation type: {}", rel_type))
+                log::error!(
+                    "[{:?}]: Invalid relocation type: {}",
+                    module.name(),
+                    rel_type
+                );
+                ModuleErr::ENOEXEC
             })?;
             // val corresponds to (S + A) in the AArch64 ELF document.
             let target_addr = sym.st_value.wrapping_add(rela.r_addend as u64);
 
             // Perform the static relocation.
             log::info!(
-                "[{}]: Applying relocation {:?} at location {:#x} with target addr {:#x}",
+                "[{:?}]: Applying relocation {:?} at location {:#x} with target addr {:#x}",
                 module.name(),
                 reloc_type,
                 location,
@@ -567,7 +566,7 @@ impl Aarch64ArchRelocate {
             let res = reloc_type.apply_relocation(location, target_addr);
             match res {
                 Err(e) => {
-                    log::error!("[{}]: ({}) {:?}", module.name(), sym_name, e);
+                    log::error!("[{:?}]: ({}) {:?}", module.name(), sym_name, e);
                     return Err(e);
                 }
                 Ok(_) => { /* Successfully applied relocation */ }

@@ -1,5 +1,4 @@
 use crate::{BIT, ModuleErr, Result};
-use alloc::format;
 
 #[allow(non_camel_case_types, unused)]
 #[derive(Debug, Clone, Copy)]
@@ -103,9 +102,9 @@ fn aarch64_get_imm_shift_mask(imm_type: Aarch64InsnImmType) -> Result<(i32, u32)
         }
         Aarch64InsnImmType::AARCH64_INSN_IMM_R => Ok((16, BIT!(6) - 1)),
         Aarch64InsnImmType::AARCH64_INSN_IMM_N => Ok((22, 1)),
-        _ => Err(ModuleErr::RelocationFailed(format!(
-            "unknown immediate encoding: {:?}",
-            imm_type
-        ))),
+        _ => {
+            log::error!("unknown immediate encoding: {:?}", imm_type);
+            Err(ModuleErr::EINVAL)
+        }
     }
 }

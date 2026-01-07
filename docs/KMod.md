@@ -40,6 +40,73 @@ typedef struct {
   - 如果是绝对符号（SHN_ABS），则为绝对地址
 - `st_size` - 符号的大小（以字节为单位）用于调试、统计等目的
 
+
+## 内核模块参数
+
+内核模块参数允许在加载模块时传递参数，以配置模块的行为。参数可以通过`module_param`宏定义，并指定类型和权限。例如：
+
+```c
+#include <linux/module.h>
+static int my_param = 0;
+module_param(my_param, int, 0644);
+```
+
+这段代码定义了一个名为`my_param`的整数参数，默认值为0，并且权限设置为0644（允许读写）。加载模块时，可以通过命令行参数传递参数值，例如：
+
+```sh
+insmod my_module.ko my_param=42
+```
+
+在内核中，模块参数通过`struct kernel_param`结构体进行管理，该结构体包含参数的名称、类型、权限以及指向参数值的指针。内核模块加载器会解析传递的参数，并将其值设置到相应的变量中。
+```rust
+#[repr(C)]
+#[derive(Copy, Clone)]
+pub struct kernel_param {
+    pub name: *const core::ffi::c_char,
+    pub mod_: *mut module,
+    pub ops: *const kernel_param_ops,
+    pub perm: u16_,
+    pub level: s8,
+    pub flags: u8_,
+    pub __bindgen_anon_1: kernel_param__bindgen_ty_1,
+}
+```
+我们需要关注ops字段，它指向一个`kernel_param_ops`结构体，该结构体定义了操作函数，用于处理参数的设置和获取。内核为不同类型的参数提供了不同的操作函数，例如整数、字符串等。通过这些操作函数，内核模块可以正确地解析和处理传递的参数值。然而，这些ops并不是直接可见的，在`kernel/params.c`中，这些ops通过宏进行定义和注册，例如：
+
+```c
+#define STANDARD_PARAM_DEF(name, type, format, strtolfn)      		\
+	int param_set_##name(const char *val, const struct kernel_param *kp) \
+	{								\
+		return strtolfn(val, 0, (type *)kp->arg);		\
+	}								\
+	int param_get_##name(char *buffer, const struct kernel_param *kp) \
+	{								\
+		return scnprintf(buffer, PAGE_SIZE, format "\n",	\
+				*((type *)kp->arg));			\
+	}								\
+	const struct kernel_param_ops param_ops_##name = {			\
+		.set = param_set_##name,				\
+		.get = param_get_##name,				\
+	};								\
+	EXPORT_SYMBOL(param_set_##name);				\
+	EXPORT_SYMBOL(param_get_##name);				\
+	EXPORT_SYMBOL(param_ops_##name)
+
+
+STANDARD_PARAM_DEF(byte,	unsigned char,		"%hhu",		kstrtou8);
+STANDARD_PARAM_DEF(short,	short,			"%hi",		kstrtos16);
+STANDARD_PARAM_DEF(ushort,	unsigned short,		"%hu",		kstrtou16);
+STANDARD_PARAM_DEF(int,		int,			"%i",		kstrtoint);
+STANDARD_PARAM_DEF(uint,	unsigned int,		"%u",		kstrtouint);
+STANDARD_PARAM_DEF(long,	long,			"%li",		kstrtol);
+STANDARD_PARAM_DEF(ulong,	unsigned long,		"%lu",		kstrtoul);
+STANDARD_PARAM_DEF(ullong,	unsigned long long,	"%llu",		kstrtoull);
+STANDARD_PARAM_DEF(hexint,	unsigned int,		"%#08x", 	kstrtouint);
+```
+在Rust实现中，如果要支持内核模块参数的功能，需要在kmod库中添加对这些ops的支持，以便正确处理不同类型的参数。
+
+
+
 ## LKM 兼容性
 尽管LKM（Loadable Kernel Module）使得内核功能变得灵活和可扩展，但是LKM并不是二进制兼容的，甚至在API上也不保证兼容性，这导致不同内核版本之间LKM需要重新编译。为了实现加载LKM的目标，需要确定以下几点：
 - 内核版本：不同的内核版本可能有不同的内核API和数据结构定义

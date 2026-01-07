@@ -1,5 +1,3 @@
-use alloc::format;
-use alloc::string::ToString;
 use goblin::elf::SectionHeader;
 use int_enum::IntEnum;
 
@@ -133,10 +131,11 @@ const fn riscv_insn_valid_32bit_offset(offset: i64) -> bool {
 impl Rv64RelTy {
     fn apply_r_riscv_32_rela(location: Ptr, address: u64) -> Result<()> {
         if address != address as u32 as u64 {
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "R_RISCV_32: target {:016x} does not fit in 32 bits",
                 address
-            )));
+            );
+            return Err(ModuleErr::ENOEXEC);
         }
         // Write the lower 32 bits to the location
         location.write(address as u32);
@@ -209,11 +208,12 @@ impl Rv64RelTy {
     fn apply_r_riscv_pcrel_hi20_rela(location: Ptr, address: u64) -> Result<()> {
         let offset = address as i64 - location.0 as i64;
         if !riscv_insn_valid_32bit_offset(offset) {
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "R_RISCV_PCREL_HI20: target {:016x} can not be addressed by the 32-bit offset from PC = {:p}",
                 address,
                 location.as_ptr::<u32>()
-            )));
+            );
+            return Err(ModuleErr::ENOEXEC);
         }
         let hi20 = (offset + 0x800) & 0xfffff000;
         let original_inst = location.read::<u32>();
@@ -287,11 +287,12 @@ impl Rv64RelTy {
         let offset = address as i64 - location.0 as i64;
         if !riscv_insn_valid_32bit_offset(offset) {
             // Only emit the plt entry if offset over 32-bit range
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "R_RISCV_CALL_PLT: target {:016x} can not be addressed by the 32-bit offset from PC = {:p}",
                 address,
                 location.as_ptr::<u32>()
-            )));
+            );
+            return Err(ModuleErr::ENOEXEC);
         }
         let hi20 = (offset + 0x800) & 0xfffff000;
         let lo12 = (offset - hi20) & 0xfff;
@@ -306,11 +307,12 @@ impl Rv64RelTy {
     fn apply_r_riscv_call_rela(location: Ptr, address: u64) -> Result<()> {
         let offset = address as i64 - location.0 as i64;
         if !riscv_insn_valid_32bit_offset(offset) {
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "R_RISCV_CALL: target {:016x} can not be addressed by the 32-bit offset from PC = {:p}",
                 address,
                 location.as_ptr::<u32>()
-            )));
+            );
+            return Err(ModuleErr::ENOEXEC);
         }
         let hi20 = (offset + 0x800) & 0xfffff000;
         let lo12 = (offset - hi20) & 0xfff;
@@ -327,10 +329,11 @@ impl Rv64RelTy {
     }
 
     fn apply_r_riscv_align_rela(location: Ptr, _address: u64) -> Result<()> {
-        Err(ModuleErr::RelocationFailed(format!(
+        log::error!(
             "The unexpected relocation type 'R_RISCV_ALIGN' from PC = {:p}",
             location.as_ptr::<u32>()
-        )))
+        );
+        Err(ModuleErr::ENOEXEC)
     }
 
     fn apply_r_riscv_add16_rela(location: Ptr, address: u64) -> Result<()> {
@@ -426,7 +429,12 @@ impl Riscv64ArchRelocate {
             let location = sechdrs[rel_section.sh_info as usize].sh_addr + rela.r_offset;
 
             let reloc_type = Riscv64RelocationType::try_from(rel_type).map_err(|_| {
-                ModuleErr::RelocationFailed(format!("Invalid relocation type: {}", rel_type))
+                log::error!(
+                    "[{:?}]: Invalid relocation type: {}",
+                    module.name(),
+                    rel_type
+                );
+                ModuleErr::ENOEXEC
             })?;
 
             let (sym, sym_name) = &load_info.syms[sym_idx];
@@ -443,10 +451,13 @@ impl Riscv64ArchRelocate {
                         sechdrs[rel_section.sh_info as usize].sh_addr + inner_rela.r_offset;
                     let hi20_type = get_rela_type(inner_rela.r_info);
                     let hi20_type = Rv64RelTy::try_from(hi20_type).map_err(|_| {
-                        ModuleErr::RelocationFailed(format!(
-                            "Invalid relocation type: {}",
+                        log::error!(
+                            "[{:?}]: ({}) Invalid relocation type: {}",
+                            module.name(),
+                            sym_name,
                             hi20_type
-                        ))
+                        );
+                        ModuleErr::ENOEXEC
                     })?;
 
                     // Find the corresponding HI20 relocation entry
@@ -481,19 +492,17 @@ impl Riscv64ArchRelocate {
                 }
                 if !find {
                     log::error!(
-                        "[{}]: ({}) Can not find HI20 relocation information for LO12 relocation",
+                        "[{:?}]: ({}) Can not find HI20 relocation information for LO12 relocation",
                         module.name(),
                         sym_name
                     );
-                    return Err(ModuleErr::RelocationFailed(
-                        "Missing HI20 relocation for LO12".to_string(),
-                    ));
+                    return Err(ModuleErr::ENOEXEC);
                 }
             }
             let res = reloc_type.apply_relocation(location, target_addr);
             match res {
                 Err(e) => {
-                    log::error!("[{}]: ({}) {:?}", module.name(), sym_name, e);
+                    log::error!("[{:?}]: ({}) {:?}", module.name(), sym_name, e);
                     return Err(e);
                 }
                 Ok(_) => { /* Successfully applied relocation */ }

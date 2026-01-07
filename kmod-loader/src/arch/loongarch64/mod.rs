@@ -3,8 +3,6 @@ use crate::arch::loongarch64::inst::*;
 use crate::arch::*;
 use crate::loader::*;
 use crate::{ModuleErr, Result};
-use alloc::format;
-use alloc::string::ToString;
 use goblin::elf::SectionHeader;
 use int_enum::IntEnum;
 
@@ -161,9 +159,12 @@ fn rela_stack_push(
     value: i64,
 ) -> Result<()> {
     if *rela_stack_top >= RELA_STACK_DEPTH {
-        return Err(ModuleErr::RelocationFailed(
-            "Relocation stack overflow".to_string(),
-        ));
+        log::error!(
+            "rela_stack_push: stack overflow when pushing value = {}, top = {}",
+            value,
+            *rela_stack_top
+        );
+        return Err(ModuleErr::ENOEXEC);
     }
     rela_stack[*rela_stack_top] = value;
     log::debug!(
@@ -180,9 +181,8 @@ fn rela_stack_pop(
     rela_stack_top: &mut usize,
 ) -> Result<i64> {
     if *rela_stack_top == 0 {
-        return Err(ModuleErr::RelocationFailed(
-            "Relocation stack underflow".to_string(),
-        ));
+        log::error!("Relocation stack underflow");
+        return Err(ModuleErr::ENOEXEC);
     }
     *rela_stack_top -= 1;
     let value = rela_stack[*rela_stack_top];
@@ -200,24 +200,27 @@ impl Loongarch64RelocationType {
         let mut offset = address as i64 - location.0 as i64;
         if offset < -(SZ_128M as i64) || offset >= SZ_128M as i64 {
             // TODO: module_emit_plt_entry
-            return Err(ModuleErr::RelocationFailed(format!(
-                "R_LARCH_B26 relocation out of range: offset = {}",
-                offset
-            )));
+            log::error!("R_LARCH_B26 relocation out of range: offset = {}", offset);
+            return Err(ModuleErr::ENOEXEC);
         }
 
         if offset & 3 != 0 {
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "jump offset = {:#x} unaligned! dangerous R_LARCH_B26 ({:?}) relocation",
-                offset, self
-            )));
+                offset,
+                self
+            );
+
+            return Err(ModuleErr::ENOEXEC);
         }
 
         if !signed_imm_check(offset, 28) {
-            return Err(ModuleErr::RelocationFailed(format!(
+            log::error!(
                 "jump offset = {:#x} overflow! dangerous R_LARCH_B26 ({:?}) relocation",
-                offset, self
-            )));
+                offset,
+                self
+            );
+            return Err(ModuleErr::ENOEXEC);
         }
         let instruction = location.read::<u32>();
 
@@ -280,10 +283,7 @@ impl Loongarch64RelocationType {
             }
             _ => {
                 log::error!("Relocation type {:?} not implemented yet", self);
-                return Err(ModuleErr::RelocationFailed(format!(
-                    "Relocation type {:?} not implemented yet",
-                    self
-                )));
+                return Err(ModuleErr::ENOEXEC);
             }
         };
         location.write::<u32>(new_inst_val);
@@ -417,10 +417,8 @@ impl Loongarch64RelocationType {
                 rela_stack_push(rela_stack, rela_stack_top, result)?;
             }
             _ => {
-                return Err(ModuleErr::RelocationFailed(format!(
-                    "Unsupported SOP operation: {:?}",
-                    self
-                )));
+                log::error!("Relocation type {:?} not implemented yet", self);
+                return Err(ModuleErr::ENOEXEC);
             }
         }
 
@@ -442,10 +440,7 @@ impl Loongarch64RelocationType {
                 opr1,
                 self
             );
-            ModuleErr::RelocationFailed(format!(
-                "Relocation overflow in {:?} with value {}",
-                self, opr1
-            ))
+            ModuleErr::ENOEXEC
         };
 
         let unaligned = || {
@@ -454,10 +449,7 @@ impl Loongarch64RelocationType {
                 opr1,
                 self
             );
-            ModuleErr::RelocationFailed(format!(
-                "Relocation unaligned in {:?} with value {}",
-                self, opr1
-            ))
+            ModuleErr::ENOEXEC
         };
 
         let inst = location.read::<u32>();
@@ -564,10 +556,7 @@ impl Loongarch64RelocationType {
             }
             _ => {
                 log::error!("Relocation type {:?} not implemented yet", self);
-                Err(ModuleErr::RelocationFailed(format!(
-                    "Relocation type {:?} not implemented yet",
-                    self
-                )))
+                Err(ModuleErr::ENOEXEC)
             }
         }
     }
@@ -699,7 +688,12 @@ impl Loongarch64ArchRelocate {
             // }
 
             let reloc_type = Loongarch64RelocationType::try_from(rel_type).map_err(|_| {
-                ModuleErr::RelocationFailed(format!("Invalid relocation type: {}", rel_type))
+                log::error!(
+                    "[{:?}]: Invalid relocation type: {}",
+                    module.name(),
+                    rel_type
+                );
+                ModuleErr::ENOEXEC
             })?;
 
             let target_addr = sym.st_value.wrapping_add(rela.r_addend as u64);
@@ -718,7 +712,7 @@ impl Loongarch64ArchRelocate {
 
             match res {
                 Err(e) => {
-                    log::error!("[{}]: ({}) {:?}", module.name(), sym_name, e);
+                    log::error!("[{:?}]: ({}) {:?}", module.name(), sym_name, e);
                     return Err(e);
                 }
                 Ok(_) => { /* Successfully applied relocation */ }

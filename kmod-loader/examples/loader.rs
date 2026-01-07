@@ -27,8 +27,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data = std::fs::read(file_path).expect("Failed to read file");
     let data_box = data.into_boxed_slice();
 
-    let loader = ModuleLoader::<FakeHelper>::new(&data_box)?;
-    let owner = loader.load_module()?;
+    let loader = ModuleLoader::<FakeHelper>::new(&data_box).unwrap();
+    let owner = loader.load_module().unwrap();
     drop(owner);
     Ok(())
 }
