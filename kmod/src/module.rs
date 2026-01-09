@@ -1,3 +1,5 @@
+use crate::KernelParam;
+
 /// The `Module` struct represents a kernel module.
 ///
 /// See <https://elixir.bootlin.com/linux/v6.6/source/include/linux/module.h#L402>
@@ -50,5 +52,13 @@ impl Module {
     pub fn name(&self) -> &str {
         let c_str = unsafe { core::ffi::CStr::from_ptr(self.0.name.as_ptr()) };
         c_str.to_str().unwrap_or("unknown")
+    }
+
+    pub fn raw_mod(&mut self) -> &mut kbindings::module {
+        &mut self.0
+    }
+
+    pub fn params_mut(&mut self) -> &mut [KernelParam] {
+        unsafe { core::slice::from_raw_parts_mut(self.0.kp as _, self.0.num_kp as usize) }
     }
 }

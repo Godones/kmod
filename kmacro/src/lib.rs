@@ -67,6 +67,24 @@ pub fn capi_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
+/// Attribute macro to mark a C static data item. It applies `no_mangle` and
+/// `used` attributes.
+/// # Example:
+/// ```ignore
+/// #[cdata]
+/// static MY_CDATA: i32 = 42;
+/// ```
+#[proc_macro_attribute]
+pub fn cdata(_attr: TokenStream, item: TokenStream) -> TokenStream {
+    let data = parse_macro_input!(item as syn::ItemStatic);
+    quote! {
+        #[unsafe(no_mangle)]
+        #[used]
+        #data
+    }
+    .into()
+}
+
 struct ModuleArgs {
     name: Option<LitStr>,
     version: Option<LitStr>,

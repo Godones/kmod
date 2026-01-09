@@ -2,6 +2,7 @@ use crate::{ModuleErr, Result, module::ModuleInfo};
 
 use alloc::{
     boxed::Box,
+    ffi::CString,
     format,
     string::{String, ToString},
     vec::Vec,
@@ -329,7 +330,7 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
     }
 
     /// Load the module into kernel space
-    pub fn load_module(mut self) -> Result<ModuleOwner<H>> {
+    pub fn load_module(mut self, args: CString) -> Result<ModuleOwner<H>> {
         if !self.module_sig_check() {
             log::error!("Module signature check failed");
             return Err(ModuleErr::ENOEXEC);
@@ -339,15 +340,34 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
         let mut owner = self.elf_validity_cache_copy()?;
 
         self.layout_and_allocate(&mut owner)?;
-        let load_info = self.simplify_symbols(&owner)?;
+        let load_info: ModuleLoadInfo = self.simplify_symbols(&owner)?;
         self.apply_relocations(load_info, &owner)?;
 
         self.post_read_this_module(&mut owner)?;
 
+        self.find_module_sections(&mut owner)?;
+
         self.complete_formation(&mut owner)?;
+
+        self.parse_args(&mut owner, args)?;
 
         log::error!("Module({:?}) loaded successfully!", owner.name());
         Ok(owner)
+    }
+
+    /// Args looks like "foo=bar,bar2 baz=fuz wiz". Parse them and set module parameters.
+    fn parse_args(&self, owner: &mut ModuleOwner<H>, args: CString) -> Result<()> {
+        let name = owner.name().unwrap_or("unknown").to_string();
+        let kparams = owner.module.params_mut();
+        let after_dashes = crate::param::parse_args(&name, args, kparams, i16::MIN, i16::MAX)?;
+        if !after_dashes.is_empty() {
+            log::warn!(
+                "[{}]: parameters '{}' after '--' ignored",
+                name,
+                after_dashes.to_str().unwrap_or("<invalid UTF-8>")
+            );
+        }
+        Ok(())
     }
 
     fn find_section(&self, name: &str) -> Result<&SectionHeader> {
@@ -442,6 +462,29 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
         );
 
         owner.module = module;
+        Ok(())
+    }
+
+    /// Get number of objects and starting address of a section
+    fn section_objs(&self, name: &str, object_size: usize) -> Result<(usize, *const u8)> {
+        let section = self.find_section(name)?;
+        let num = section.sh_size as usize / object_size;
+        let addr = section.sh_addr as *const u8;
+        Ok((num, addr))
+    }
+
+    fn find_module_sections(&self, owner: &mut ModuleOwner<H>) -> Result<()> {
+        let (num_kparams, kparam_addr) =
+            self.section_objs("__param", size_of::<kmod::kernel_param>())?;
+        let raw_module = owner.module.raw_mod();
+        raw_module.kp = kparam_addr as *mut kmod::kernel_param;
+        raw_module.num_kp = num_kparams as _;
+
+        // TODO: implement finding other sections:
+        // __ksymtab
+        // __kcrctab
+        // __ksymtab_gpl
+        // __kcrctab_gpl
         Ok(())
     }
 

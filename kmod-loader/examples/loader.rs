@@ -1,5 +1,6 @@
 use kmod_loader::{KernelModuleHelper, ModuleLoader, SectionMemOps, SectionPerm};
 use std::env;
+use std::ffi::CString;
 use std::path::Path;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
@@ -28,7 +29,8 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let data_box = data.into_boxed_slice();
 
     let loader = ModuleLoader::<FakeHelper>::new(&data_box).unwrap();
-    let owner = loader.load_module().unwrap();
+    let args = CString::new("").unwrap();
+    let owner = loader.load_module(args).unwrap();
     drop(owner);
     Ok(())
 }

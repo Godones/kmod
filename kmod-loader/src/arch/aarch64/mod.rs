@@ -244,7 +244,7 @@ impl Aarch64RelocationType {
         } else {
             //  out of range for ADR -> emit a veneer
             log::error!("ADR out of range for veneer emission");
-            return Err(ModuleErr::ENOEXEC);
+            Err(ModuleErr::ENOEXEC)
         }
     }
 
