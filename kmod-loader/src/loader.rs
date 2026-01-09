@@ -370,6 +370,7 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
         Ok(())
     }
 
+    /// Find section by name
     fn find_section(&self, name: &str) -> Result<&SectionHeader> {
         for shdr in &self.elf.section_headers {
             let sec_name = self
@@ -465,9 +466,11 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
         Ok(())
     }
 
-    /// Get number of objects and starting address of a section
+    /// Get number of objects and starting address of a section.
     fn section_objs(&self, name: &str, object_size: usize) -> Result<(usize, *const u8)> {
-        let section = self.find_section(name)?;
+        let section = self
+            .find_section(name)
+            .unwrap_or(&self.elf.section_headers[0]); // Section 0 has sh_addr 0 and sh_size 0.
         let num = section.sh_size as usize / object_size;
         let addr = section.sh_addr as *const u8;
         Ok((num, addr))
