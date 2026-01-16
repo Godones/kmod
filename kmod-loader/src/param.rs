@@ -92,8 +92,7 @@ macro_rules! impl_macro {
                 len as c_int
             }
 
-            #[unsafe(no_mangle)]
-            #[used]
+            #[cdata]
             static [<param_ops_$name>]: kmod::kernel_param_ops = kmod::kernel_param_ops {
                 set: Some([<param_set_$name>]),
                 get: Some([<param_get_$name>]),
@@ -424,8 +423,6 @@ pub(crate) fn parse_args(
     if args.is_empty() {
         return Ok(CString::new("").unwrap());
     }
-    let args_str = unsafe { core::str::from_utf8_unchecked(args) };
-    log::debug!("Parsing module args for {}: {}", doing, args_str);
 
     while args[0] != b'\0' {
         let (param, val, new_args) = next_arg(args)?;

@@ -67,8 +67,8 @@ pub fn capi_fn(_attr: TokenStream, item: TokenStream) -> TokenStream {
     .into()
 }
 
-/// Attribute macro to mark a C static data item. It applies `no_mangle` and
-/// `used` attributes.
+/// Attribute macro to mark a C static data item. It places the item in the
+/// `.c.data` section and applies `no_mangle` and `used`.
 /// # Example:
 /// ```ignore
 /// #[cdata]
@@ -80,6 +80,7 @@ pub fn cdata(_attr: TokenStream, item: TokenStream) -> TokenStream {
     quote! {
         #[unsafe(no_mangle)]
         #[used]
+        #[unsafe(link_section = ".c.data")]
         #data
     }
     .into()

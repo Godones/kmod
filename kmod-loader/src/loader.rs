@@ -55,7 +55,7 @@ impl SectionPerm {
 }
 
 /// Trait to get raw pointer from a reference
-pub trait SectionMemOps {
+pub trait SectionMemOps: Send + Sync {
     fn as_ptr(&self) -> *const u8;
     fn as_mut_ptr(&mut self) -> *mut u8;
     /// Change the permissions of the memory region
@@ -645,6 +645,7 @@ impl<'a, H: KernelModuleHelper> ModuleLoader<'a, H> {
                                 sym_name,
                                 sym_bind_to_str(sym.st_bind())
                             );
+                            return Err(ModuleErr::ENOENT);
                         }
                     }
                 }
