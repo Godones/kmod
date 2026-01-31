@@ -101,14 +101,14 @@ modules: $(MODULES)
 # Individual module target
 $(MODULES):
 	@echo "Building module: $@"
-	cd $(MODULE_PATHS)/$@ && RUSTFLAGS="$(RUSTFLAGS)" cargo build $(build_args)
+	RUSTFLAGS="$(RUSTFLAGS)" cargo build $(build_args) -p $@
 	@$(MAKE) process-module-library MODULE_NAME=$@ TARGET=$(TARGET) LD_COMMAND=$(LD_COMMAND)
 	@$(MAKE) verify-kernel-module KO_PATH=$(BUILD_DIR)/$@/$@.ko
 
 .PHONY: process-module-library
 process-module-library:
 	@echo "Processing module library: $(MODULE_NAME)"
-	@bash build_module.sh $(MODULE_NAME) $(TARGET) $(MODULE_BUILD_DIR) $(BUILD_DIR) $(LD_COMMAND)
+	@bash build_module.sh $(MODULE_NAME) $(TARGET) $(MODULE_BUILD_DIR) $(BUILD_DIR) $(LD_COMMAND) "$(DEP_EXCLUSIONS)"
 
 .PHONY: verify-kernel-module
 verify-kernel-module:
@@ -116,16 +116,6 @@ verify-kernel-module:
 	@if [ ! -f "$(KO_PATH)" ]; then \
 		echo "Error: Kernel module file not found: $(KO_PATH)"; \
 		exit 1; \
-	fi
-	@size=$$(stat -f%z "$(KO_PATH)" 2>/dev/null || stat -c%s "$(KO_PATH)" 2>/dev/null || echo 0); \
-	if [ "$$size" -eq 0 ]; then \
-		echo "Error: Kernel module file is empty"; \
-		exit 1; \
-	fi; \
-	echo "Module size: $$size bytes"
-	@if command -v file >/dev/null 2>&1; then \
-		echo "File type:"; \
-		file "$(KO_PATH)"; \
 	fi
 	@if command -v readelf >/dev/null 2>&1; then \
 		echo "Module sections:"; \

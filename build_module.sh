@@ -28,7 +28,7 @@ lib_path_abs="$(cd "$(dirname "$lib_path")" && pwd)/$(basename "$lib_path")"
 output_ko="${BUILD_DIR}/${MODULE_NAME}/${MODULE_NAME}.ko"
 mkdir -p "$(dirname "$output_ko")"
 
-echo "Linking kernel module $MODULE_NAME"
+echo "Linking kernel module $MODULE_NAME..."
 echo "Linking --whole-archive $lib_path to $output_ko"
 
 # no-pie: Position Independent Executable is not supported in kernel modules
@@ -43,9 +43,7 @@ fi
 
 
 if [ -f "$output_ko" ]; then
-    size=$(stat -c%s "$output_ko" 2>/dev/null || stat -f%z "$output_ko" 2>/dev/null)
     echo "Successfully created kernel module: $output_ko"
-    echo "Module size: $size bytes"
 else
     echo "Error: Kernel module file was not created"
     exit 1

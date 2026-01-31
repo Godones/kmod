@@ -210,12 +210,6 @@ pub fn module(item: TokenStream) -> TokenStream {
         #[used]
         #[unsafe(link_section = ".gnu.linkonce.this_module")]
         static __this_module: kmod::Module = kmod::Module::new(Some(init_module), Some(cleanup_module));
-
-        #[cfg(target_os = "none")]
-        #[panic_handler]
-        fn panic(_info: &core::panic::PanicInfo) -> ! {
-            loop {}
-        }
     }
     .into()
 }
