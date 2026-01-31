@@ -1,23 +1,18 @@
-# Makefile - 内核模块构建系统
+# Makefile - 内核模块构建系统示例
+
+该脚本展示了如何使用Makefile来编译和链接Rust编写的内核可加载模块(RKM)。在你的内核中，你可以根据需要修改和扩展此Makefile以适应你的项目需求。
 
 ## 概述
 
-用于编译和链接内核可加载模块(LKM)。
-
-## 主要特性
-
-✅ **多架构支持** - 支持x86-64、RISC-V、ARM等目标架构  
-✅ **自动化构建** - 一键编译、提取和链接所有模块  
-✅ **灵活配置** - 通过变量自定义目标架构和路径  
-✅ **验证机制** - 自动验证生成的.ko文件  
-✅ **清理工具** - 完整的清理和重建支持  
+用于编译和链接内核可加载模块(RKM-Rust kernel modules)。和LKM(Linux kernel
+modules)的编译和链接方式有所区别。 
 
 ## 构建流程
 
 ```
 编译模块 (cargo build)
     ↓
-提取静态库中的对象文件 (rust-ar)
+提取静态库中的对象文件 (直接复用.rlib即可)
     ↓
 链接成可重定位ELF (ld -r)
     ↓
@@ -104,34 +99,6 @@ make hello TARGET=riscv64gc-unknown-none-elf LINKER_SCRIPT=custom.ld
 - **create-kernel-module** - 创建.ko文件(链接对象文件)
 - **verify-kernel-module** - 验证.ko文件
 
-## 架构支持
-
-### 自动链接器选择
-
-| 目标架构 | 链接器命令             |
-| -------- | ---------------------- |
-| x86_64   | `ld`                   |
-| RISC-V   | `riscv64-linux-gnu-ld` |
-| ARM      | `ld`                   |
-| 其他     | `ld`                   |
-
-## 输出示例
-
-```
-$ make hello
-Building module: hello
-   Compiling hello v0.1.0
-    Finished `release` profile [optimized] target(s) in 2.34s
-make[1]: Entering directory '/path/to/kmod'
-Processing module library: hello
-Extracting object files from /path/to/libhello.a
-Found object files: 34 files
-make[2]: Entering directory '/path/to/kmod'
-Linking kernel module hello
-Linking with 34 object files
-Successfully created kernel module: target/hello/hello.ko
-Module size: 616760 bytes
-```
 
 ## 文件结构
 
@@ -141,25 +108,6 @@ target/
 └── <module_name>/
     └── <module_name>.ko
 ```
-
-构建过程使用的临时目录：
-```
-target/
-└── <module_name>/
-    ├── *.o  (构建过程中产生，完成后删除)
-    └── <module_name>.ko  (最终产物)
-```
-
-## 与Rust builder的对应关系
-
-| 功能     | Rust builder               | Makefile                             |
-| -------- | -------------------------- | ------------------------------------ |
-| 列出模块 | `list_modules()`           | `list-modules` 目标 + shell globbing |
-| 构建模块 | `build_modules()`          | `$(MODULES)` 目标                    |
-| 处理库   | `process_module_library()` | `process-module-library` 目标        |
-| 创建.ko  | `create_kernel_module()`   | `create-kernel-module` 目标          |
-| 验证     | `verify_kernel_module()`   | `verify-kernel-module` 目标          |
-| 架构检测 | `target_ld()`              | `ifeq` 条件判断                      |
 
 ## 常见问题
 
@@ -172,8 +120,6 @@ A: 修改Makefile中的 `BUILD_DIR` 变量，或在命令行中指定：`make BU
 ### Q: 如何使用自定义的链接脚本？
 A: 使用 `LINKER_SCRIPT` 变量：`make LINKER_SCRIPT=my_linker.ld`
 
-### Q: 为什么构建RISC-V模块失败？
-A: 确保安装了 `riscv64-linux-gnu-ld` 链接器，或修改Makefile中的链接器选择逻辑
 
 ## 与ELF解析器集成
 
@@ -185,12 +131,6 @@ cargo run --example parse_elf -- target/hello/hello.ko
 ```
 
 ## 注意事项
-
 1. **cargo必须安装** - Makefile依赖cargo编译模块
-2. **rust-ar工具** - 用于从Rust生成的.a文件提取对象文件
-3. **链接器** - 根据目标架构可能需要特定的链接器
-4. **linker.ld文件** - 链接脚本必须存在于项目根目录
-5. **权限** - 确保对target目录有读写权限
+2. **linker.ld文件** - 链接脚本必须存在于项目根目录
 
-## 后续改进
-- [ ] 添加更多架构自动检测

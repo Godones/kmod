@@ -1,16 +1,21 @@
-# Rust LKM
+# RKM - Rust Kernel Modules
+<!-- [![Crates.io](https://img.shields.io/crates/v/kmod.svg)](https://crates.io/crates/kmod)
+[![Docs.rs](https://docs.rs/kmod/badge.svg)](https://docs.rs/kmod) -->
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-一个用Rust编写和构建Linux内核模块(LKM)的完整工具链和库集合。
 
+一组工具和库，用于支持在Rust实现的内核中使用Rust编写原生可加载模块(LKM-rust)，同时支持加载Linux的可加载内核模块(LKM)。
+ 
 ## 📦 项目组成
 
 本项目包含以下组件：
-
+- **`kapi`**: 提供了Linux内核中常见的字符串和内存操作函数的Rust实现，以便于加载LKM时提供符号
 - **`kbindings`**: Linux内核C绑定，提供内核API的Rust FFI接口
 - **`kmacro`**: 过程宏库，简化Rust内核模块的开发（提供`#[init_fn]`、`#[exit_fn]`、`module!`等宏）
-- **`kmod`**: 核心库，提供内核模块开发的抽象和工具，包括模块参数、初始化/退出函数等
-- **`kmod-loader`**: 内核空间加载器，用于动态加载和管理Rust编写的内核模块（支持符号解析、重定位等）
-- **`modules/hello`**: 示例"Hello World"内核模块，展示基本用法
+- **`kmod`**: 核心库，导出其它组件中内核模块开发的抽象和工具
+- **`kmod-loader`**: 内核空间加载器，用于动态加载和管理Rust编写的内核模块/LKM
+（支持符号解析、重定位等）
+- **`modules/hello`**: 示例"Hello World"内核模块，展示使用Rust写内核模块基本用法
 
 ## 🚀 快速开始
 
@@ -19,7 +24,6 @@
 - Rust工具链（nightly版本）
 - Linux内核头文件
 - 交叉编译工具链（如需要目标架构编译）
-- `rust-ar`或`llvm-ar`工具
 
 ### 构建示例模块
 
@@ -31,9 +35,6 @@ make hello
 make TARGET=riscv64gc-unknown-none-elf hello
 make TARGET=aarch64-unknown-none hello
 make TARGET=x86_64-unknown-none hello
-
-# 或使用构建脚本
-./build_module.sh hello riscv64gc-unknown-none-elf target/riscv64gc-unknown-none-elf/release
 ```
 
 ### 编写自己的模块
@@ -81,24 +82,15 @@ module!(
 - `#[capi_fn]` - 导出C API兼容函数
 - `#[cdata]` - 定义内核模块数据结构
 
-### kmod - 核心库
-
-- 模块参数支持（`module_param!`）
-- 类型安全的内核API抽象
-- `no_std`环境支持
-- 符号导出和链接支持
-
 ### kmod-loader - 动态加载器
 
 - ELF解析和加载
 - 符号解析和重定位
 - 支持模块参数传递
 - 多架构支持（x86_64、riscv64、aarch64、loongarch64）
-- 模块依赖管理
 
 ## 🔧 构建系统
 
-项目提供两种构建方式：
 
 ### 1. Makefile方式
 
@@ -115,16 +107,9 @@ make clean
 # 为特定架构构建
 make TARGET=riscv64gc-unknown-none-elf MODULE=hello
 ```
-
-### 2. Shell脚本方式
-
-```bash
-./build_module.sh <module_name> <target> <module_build_dir> [build_dir] [ld_command]
-```
-
 构建流程：
 ```
-Cargo构建 → 提取.a静态库 → 链接成可重定位ELF (.ko) → 验证
+Cargo构建 → 提取.rlib → 链接成可重定位ELF (.ko) → 验证
 ```
 
 ## 📖 文档
@@ -155,12 +140,9 @@ module_param!(MY_PARAM, "int", 0o644, "My parameter description");
 ## 🎯 待办事项
 
 - [ ] 完善文档和示例
-- [ ] 支持更多内核API绑定
 - [ ] 改进错误处理机制
 - [ ] 添加单元测试
 - [ ] 支持内核版本兼容性检查
-- [ ] 添加更多示例模块
-- [ ] 完善kmod-loader的调试功能
 - [ ] 支持模块签名和验证
 
 ## 📄 许可证
@@ -171,10 +153,4 @@ MIT License
 
 欢迎提交Issue和Pull Request！
 
-## ⚠️ 注意事项
-
-- 内核模块开发需要谨慎，错误可能导致系统崩溃
-- 确保在虚拟机或测试环境中进行开发和测试
-- 模块需要与目标内核版本兼容
-- 编译时需要使用`no_std`环境
 

@@ -1,5 +1,6 @@
 #![no_std]
 #![allow(unsafe_op_in_unsafe_fn)]
+#![allow(clippy::missing_safety_doc)]
 extern crate alloc;
 
 use axerrno::{LinuxError, LinuxResult};

@@ -10,13 +10,13 @@ const INT_MAX: usize = i32::MAX as usize;
 /// Helper: convert character to lowercase
 #[inline]
 fn to_lower(c: u8) -> u8 {
-    if c >= b'A' && c <= b'Z' { c + 32 } else { c }
+    if c.is_ascii_uppercase() { c + 32 } else { c }
 }
 
 /// Helper: check if character is a hex digit
 #[inline]
 fn is_xdigit(c: u8) -> bool {
-    (c >= b'0' && c <= b'9') || (c >= b'a' && c <= b'f') || (c >= b'A' && c <= b'F')
+    c.is_ascii_digit() || (b'a'..=b'f').contains(&c) || (b'A'..=b'F').contains(&c)
 }
 
 /// Parse integer fixup radix - auto-detect base from string prefix
@@ -72,9 +72,9 @@ pub unsafe extern "C" fn _parse_integer_limit(
         let lc = to_lower(c);
         let val: u32;
 
-        if c >= b'0' && c <= b'9' {
+        if c.is_ascii_digit() {
             val = (c - b'0') as u32;
-        } else if lc >= b'a' && lc <= b'f' {
+        } else if (b'a'..=b'f').contains(&lc) {
             val = (lc - b'a' + 10) as u32;
         } else {
             break;
@@ -85,11 +85,10 @@ pub unsafe extern "C" fn _parse_integer_limit(
         }
 
         // Check for overflow only if we are within range of it in the max base we support (16)
-        if res & (!0u64 << 60) != 0 {
-            if res > (ULLONG_MAX - val as u64) / base as u64 {
+        if res & (!0u64 << 60) != 0
+            && res > (ULLONG_MAX - val as u64) / base as u64 {
                 rv |= KSTRTOX_OVERFLOW;
             }
-        }
         // res = res * base as u64 + val as u64;
         res = res.wrapping_mul(base as u64).wrapping_add(val as u64);
         rv += 1;
@@ -183,7 +182,6 @@ pub unsafe extern "C" fn kstrtoull(s: *const core::ffi::c_char, base: u32, res: 
 #[capi_fn]
 #[inline(never)]
 pub unsafe extern "C" fn kstrtoll(s: *const core::ffi::c_char, base: u32, res: *mut i64) -> c_int {
-    let s = s;
     if s.is_null() {
         return -(LinuxError::EINVAL as c_int);
     }

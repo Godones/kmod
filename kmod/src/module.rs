@@ -4,13 +4,9 @@ use crate::KernelParam;
 ///
 /// See <https://elixir.bootlin.com/linux/v6.6/source/include/linux/module.h#L402>
 #[repr(transparent)]
+#[derive(Default)]
 pub struct Module(kbindings::module);
 
-impl Default for Module {
-    fn default() -> Self {
-        Self(kbindings::module::default())
-    }
-}
 
 unsafe impl Send for Module {}
 unsafe impl Sync for Module {}
@@ -40,13 +36,13 @@ impl Module {
     }
 
     pub fn take_init_fn(&mut self) -> Option<unsafe extern "C" fn() -> core::ffi::c_int> {
-        let init_fn = self.0.init.take();
-        init_fn
+        
+        self.0.init.take()
     }
 
     pub fn take_exit_fn(&mut self) -> Option<unsafe extern "C" fn()> {
-        let exit_fn = self.0.exit.take();
-        exit_fn
+        
+        self.0.exit.take()
     }
 
     pub fn name(&self) -> &str {
